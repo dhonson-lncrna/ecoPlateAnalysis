@@ -1,0 +1,12 @@
+shared_params:
+    useDefault: True
+
+# Parameters for default analysis
+default_analysis:
+    fdir: 'exampleAnalysis/data/'
+    sheet_json: 'exampleAnalysis/plateIDs.json'
+    sheet_info: ['diapause','specimen','rep']
+    metab_json: 'resources/ecoPlate.json'
+    plate_flip: ['60h']
+    header: 'waterLarvae'
+    output: 'defaultOutput'

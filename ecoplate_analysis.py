@@ -3,6 +3,7 @@ import numpy as np
 import json
 import os
 import yaml
+import sys
 
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
@@ -105,9 +106,9 @@ def onefile_importer(fname,
             raise Exception('Header row not found for '+sheet_name)
 
         # Import tidy data
-        df = pd.read_excel('exampleData/24h_example.xlsx',
-                   sheet_name=s,
-                   skiprows=skiprows)
+        df = pd.read_excel(fname,
+                           sheet_name=s,
+                           skiprows=skiprows)
         df = df.dropna(axis=1)
         df.columns = [str(i) for i in df.columns]
 
@@ -248,9 +249,9 @@ def ecoplate_importer(fdir,
     # Use onefile_importer() to get data for each file
     df_ls = []
     for f in files:
-        if not a:
+        if not plate_flip:
             pf = False
-        elif f.split('_')[0] in a:
+        elif f.split('_')[0] in plate_flip:
             pf = True
         else:
             pf = False
@@ -261,7 +262,7 @@ def ecoplate_importer(fdir,
                                        metab_json,
                                        average_blanks=False,
                                        zero_negatives=True,
-                                       plate_flip=False))
+                                       plate_flip=pf))
 
     return pd.concat(df_ls)
 
@@ -511,8 +512,9 @@ def metabolite_pca(int_df,
 def default_analysis(fdir,
                      sheet_json,
                      sheet_info,
-                     plate_json,
+                     metab_json,
                      plate_flip,
+                     header='ecoPlate',
                      output='defaultOutput'):
     '''
     Runs above functions with most common parameters. Output of all
@@ -526,36 +528,38 @@ def default_analysis(fdir,
     except:
         pass
 
+    # Full header
+    full = '/'.join([output, header])
     # Import all data
     df = ecoplate_importer(fdir,
                            sheet_json,
                            sheet_info,
-                           plate_json,
+                           metab_json,
                            average_blanks=False,
                            zero_negatives=True,
                            plate_flip=plate_flip)
-    df.to_csv(output+'/ecoPlateTidy.csv', index=False)
+    df.to_csv(full+'Tidy.csv', index=False)
 
     # Average data
     av_df = averager(df,
                  ['metab','timepoint']+sheet_info,
                  'blanked_590',
                  keep=['sample','hours'])
-    av_df.to_csv(output+'/ecoPlateAverage.csv',index=False)
+    av_df.to_csv(full+'Average.csv',index=False)
 
     # Trapezoid integration
     int_df = integrator(av_df,
                         ['metab','sample'],
                         'hours',
                         'blanked_590_mean')
-    int_df.to_csv(output+'/ecoPlateIntegration.csv', index=False)
+    int_df.to_csv(full+'Integration.csv', index=False)
 
     # Principal component analysis
     result_df, pca, loadings = metabolite_pca(int_df)
-    result_df.to_csv(output+'/ecoPlatePca.csv', index=False)
-    loadings.to_csv(output+'/ecoPlateLoadings.csv',index=False)
+    result_df.to_csv(full+'Pca.csv', index=False)
+    loadings.to_csv(full+'Loadings.csv',index=False)
     
-    with open(output+'/ecoPlatePcaReport.txt','w') as f:
+    with open(full+'PcaReport.txt','w') as f:
         f.write(f"PCA Results Summary:\n")
         f.write(f"Explained variance ratio: {pca.explained_variance_ratio_}\n")
         f.write(f"Total explained variance: {pca.explained_variance_ratio_.sum():.3f}\n")
@@ -575,6 +579,47 @@ if __name__ == "__main__":
     with open(yaml_file_path, 'r') as file:
         params = yaml.safe_load(file)
 
+    # Run default pipeline if specified
+    if params['shared_params']['useDefault']:
+        default_analysis(**params['default_analysis'])
+
+    # Otherwise run with individually specified parameters
+    else:
+        # Set up output parameters
+        outdir = params['shared_params']['outdir']
+        prefix = params['shared_params']['header']
+        try:
+            os.mkdir(outdir)
+        except:
+            pass
+        header = '/'.join([outdir,prefix])
+
+        # Import data
+        df = ecoplate_importer(**params['ecoplate_importer'])
+        df.to_csv(header+'Tidy.csv', index=False)
+
+        # Average
+        av_df = averager(df, **params['averager'])
+        av_df.to_csv(header+'Average.csv', index=False)
+
+        # Integrate
+        int_df = integrator(av_df, **params['integrator'])
+        int_df.to_csv(header+'Integration.csv', index=False)
+
+        # Principal component analysis
+        result_df, pca, loadings = metabolite_pca(int_df, **params['metabolite_pca'])
+        result_df.to_csv(header+'Pca.csv', index=False)
+        loadings.to_csv(header+'Loadings.csv',index=False)
+        
+        with open(header+'PcaReport.txt','w') as f:
+            f.write(f"PCA Results Summary:\n")
+            f.write(f"Explained variance ratio: {pca.explained_variance_ratio_}\n")
+            f.write(f"Total explained variance: {pca.explained_variance_ratio_.sum():.3f}\n")
+
+        print('Full pipeline executed correctly.')
+    
+            
+        
     
 
 

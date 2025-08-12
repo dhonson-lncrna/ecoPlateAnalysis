@@ -1,0 +1,32 @@
+shared_params:
+    outdir: 'fullOutput/'
+    header: 'waterLarva'
+    useDefault: False
+
+# Individual function parameters. If useDefault == True,
+# all parameters below this line will be ignored.
+ecoplate_importer:
+    fdir: 'exampleAnalysis/data/'
+    sheet_json: 'exampleAnalysis/plateIDs.json'
+    sample_info: ['diapause','specimen','rep']
+    metab_json: 'resources/ecoPlate.json'
+    average_blanks: False
+    zero_negatives: True
+    plate_flip: ['60h']
+
+averager:
+    by: ['metab','timepoint','sample']
+    to_avg: 'blanked_590'
+    keep: ['hours']
+    stdev: True
+
+integrator:
+    by: ['metab','sample']
+    xval: 'hours'
+    yval: 'blanked_590_mean'
+
+metabolite_pca:
+    cols: 'metab'
+    index: 'sample'
+    n_components: 2 
+    scale_data: True
