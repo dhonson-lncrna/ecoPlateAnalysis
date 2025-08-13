@@ -363,7 +363,8 @@ def averager(data,
 def integrator(av_df,
                by,
                xval,
-               yval):
+               yval,
+               exclude_negatives):
     '''
     Function to integrate average EcoPlate data over time. Calculates the area
     using the trapezoidal rule.
@@ -384,34 +385,80 @@ def integrator(av_df,
 
     yval : str
         Which column to use as y-values. Typically "blanked_590_mean".
+
+    exclude_negatives : str or None
+        Parameter that instructs the function how to handle end blanked_590 values 
+        that are lower than start blanked_590 values.
+
+        flat : integrates by taking the t0 y-value and multiplying by the total 
+            time.
+        minimum : integrates by taking the minimum y-value and multiplying by the
+            total time. Generally the safest option as it 
+        drop : removes all values for metabolites where any end blanked_590 value 
+            is higher than the start value.
+        None : keeps all values and integrates as normal. Not recommended as this 
+            will not distinguish between positive and negative trends during PCA.
         
     '''
-
+    # Check validity of exclude_negatives
+    if exclude_negatives in ['flat', 'minimum', 'drop', None]:
+        pass
+    else:
+        raise ValueError('''exclude_negatives entry not valid. Choose from
+                            ['flat', 'minimum', 'drop', None]''')
     # By can be one or more entries; handle that
     if type(by) != str:
-        av_df[''.join(by)] = av_df[by].agg(''.join, axis=1)
+        av_df['_'.join(by)] = av_df[by].agg('_'.join, axis=1)
         cols = by
-        by = ''.join(by)
+        by = '_'.join(by)
     else:
         cols = [by]
 
     # Integrate
     rows = []
+    skipped_samples = []
     for b in set(av_df[by]):
         subdf = av_df[av_df[by] == b].copy()
         subdf = subdf.sort_values(xval, ascending=True).reset_index(drop=True)
-        ind_areas = []
-        for i in subdf.index[:-1]:
-            h = subdf.loc[i+1,xval] - subdf.loc[i,xval]
-            a = subdf.loc[i,yval]
-            b = subdf.loc[i+1,yval]
-            ind_areas.append(h * (a+b) / 2)
-        area = np.sum(ind_areas)
-        out = [subdf.loc[0][c] for c in cols] + [area]
-        rows.append(out)
+        # Exclude samples where endpoint lower than start point
+        if subdf.loc[0,yval] > subdf.iloc[-1][yval]:
+            skipped_samples.append(b)
+            if exclude_negatives == 'flat':
+                area = subdf.loc[0,yval] * (max(subdf[xval]) - min(subdf[xval]))
+                out = [subdf.loc[0][c] for c in cols] + [area]
+                rows.append(out)
+            elif exclude_negatives == 'minimum':
+                area = min(subdf[yval]) * (max(subdf[xval]) - min(subdf[xval]))
+                out = [subdf.loc[0][c] for c in cols] + [area]
+                rows.append(out)
+            else:
+                pass
+        else:
+            ind_areas = []
+            for i in subdf.index[:-1]:
+                h = subdf.loc[i+1,xval] - subdf.loc[i,xval]
+                a = subdf.loc[i,yval]
+                b = subdf.loc[i+1,yval]
+                ind_areas.append(h * (a+b) / 2)
+            area = np.sum(ind_areas)
+            out = [subdf.loc[0][c] for c in cols] + [area]
+            rows.append(out)
 
     cols.append('trapezoid_integration')
-    return pd.DataFrame(rows,columns=cols)
+    outdf = pd.DataFrame(rows,columns=cols)
+    if len(skipped_samples) == 0:
+        pass
+    elif exclude_negatives == 'drop':
+        mind = by.split('_').index('metab')
+        ex_metab = set([i.split('_')[mind] for i in skipped_samples])
+        print(len(ex_metab), ex_metab)
+        outdf = outdf[~outdf['metab'].isin(ex_metab)]
+    else:
+        pass
+
+    skipped_samples = [i+'\n' for i in skipped_samples]
+
+    return outdf, skipped_samples
 
 def metabolite_pca(int_df,
                    cols='metab',
@@ -474,40 +521,17 @@ def metabolite_pca(int_df,
     pca_df = pd.DataFrame(
         pca_result,
         index=df.index,  # samples
-        columns=pc_columns
-    )
+        columns=pc_columns)
     
     # Get PCA loadings (how much each metabolite contributes to each PC)
     loadings = pd.DataFrame(
         pca.components_.T,
         index=df.columns,  # metabolites
-        columns=pc_columns
-    )
+        columns=pc_columns)
+
+    pca_df = pca_df.reset_index(drop=False)
     
-    # Create the desired long format
-    # For each metabolite, we'll include its loading values as the PC scores
-    result_data = []
-    
-    for metabolite in df.columns:
-        for sample in df.index:
-            row_data = {
-                'metabolite': metabolite,
-                'sample': sample
-            }
-            # Add PC scores for this sample
-            for pc in pc_columns:
-                row_data[pc] = pca_df.loc[sample, pc]
-            
-            result_data.append(row_data)
-    
-    result_df = pd.DataFrame(result_data)
-    
-    # Print PCA summary
-    #print(f"\nPCA Results Summary:")
-    #print(f"Explained variance ratio: {pca.explained_variance_ratio_}")
-    #print(f"Total explained variance: {pca.explained_variance_ratio_.sum():.3f}")
-    
-    return result_df, pca, loadings.round(3)
+    return pca_df, pca, loadings.round(3)
 
 def default_analysis(fdir,
                      sheet_json,
@@ -548,16 +572,19 @@ def default_analysis(fdir,
     av_df.to_csv(full+'Average.csv',index=False)
 
     # Trapezoid integration
-    int_df = integrator(av_df,
-                        ['metab','sample'],
-                        'hours',
-                        'blanked_590_mean')
+    int_df, skipped = integrator(av_df,
+                                 ['metab','sample'],
+                                 'hours',
+                                 'blanked_590_mean',
+                                  'minimum')
     int_df.to_csv(full+'Integration.csv', index=False)
+    with open(full+'SkippedSamples.txt', 'w') as f:
+        f.writelines(skipped)
 
     # Principal component analysis
-    result_df, pca, loadings = metabolite_pca(int_df)
-    result_df.to_csv(full+'Pca.csv', index=False)
-    loadings.to_csv(full+'Loadings.csv',index=False)
+    pca_df, pca, loadings = metabolite_pca(int_df)
+    pca_df.to_csv(full+'Pca.csv', index=False)
+    loadings.to_csv(full+'Loadings.csv',index=True)
     
     with open(full+'PcaReport.txt','w') as f:
         f.write(f"PCA Results Summary:\n")
@@ -603,13 +630,19 @@ if __name__ == "__main__":
         av_df.to_csv(header+'Average.csv', index=False)
 
         # Integrate
-        int_df = integrator(av_df, **params['integrator'])
+        int_df, skipped = integrator(av_df, **params['integrator'])
         int_df.to_csv(header+'Integration.csv', index=False)
+
+        if len(skipped) > 0:
+            with open(header+'SkippedSamples.txt', 'w') as f:
+                f.writelines(skipped)
+        else:
+            pass
 
         # Principal component analysis
         result_df, pca, loadings = metabolite_pca(int_df, **params['metabolite_pca'])
         result_df.to_csv(header+'Pca.csv', index=False)
-        loadings.to_csv(header+'Loadings.csv',index=False)
+        loadings.to_csv(header+'Loadings.csv',index=True)
         
         with open(header+'PcaReport.txt','w') as f:
             f.write(f"PCA Results Summary:\n")
@@ -617,11 +650,3 @@ if __name__ == "__main__":
             f.write(f"Total explained variance: {pca.explained_variance_ratio_.sum():.3f}\n")
 
         print('Full pipeline executed correctly.')
-    
-            
-        
-    
-
-
-    
-    

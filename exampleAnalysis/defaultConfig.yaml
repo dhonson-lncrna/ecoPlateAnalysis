@@ -3,10 +3,10 @@ shared_params:
 
 # Parameters for default analysis
 default_analysis:
-    fdir: 'exampleAnalysis/data/'
-    sheet_json: 'exampleAnalysis/plateIDs.json'
-    sheet_info: ['diapause','specimen','rep']
-    metab_json: 'resources/ecoPlate.json'
-    plate_flip: ['60h']
-    header: 'waterLarvae'
-    output: 'defaultOutput'
+    fdir: 'exampleAnalysis/data/' # directory containing data Excel files
+    sheet_json: 'exampleAnalysis/plateIDs.json' # path to plate:sample json 
+    sheet_info: ['diapause','specimen','rep'] # information separated by underscores in sample names (e.g. 25D_W_1)
+    metab_json: 'resources/ecoPlate.json' # path to metabolite plate layout json
+    plate_flip: ['60h'] # timepoints in which the plate was flipped during reading. If none, set to None.
+    header: 'waterLarvae' # prefix for output files
+    output: 'defaultOutput' # directory where output files will be deposited

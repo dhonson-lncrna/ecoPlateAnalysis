@@ -3,8 +3,10 @@ shared_params:
     header: 'waterLarva'
     useDefault: False
 
-# Individual function parameters. If useDefault == True,
-# all parameters below this line will be ignored.
+# Individual function parameters. If useDefault == True, all parameters 
+# below this line will be ignored and the script will fail.
+# For detailed descriptions of each parameter, see the documentation in
+# ecoplate_analysis.py
 ecoplate_importer:
     fdir: 'exampleAnalysis/data/'
     sheet_json: 'exampleAnalysis/plateIDs.json'
@@ -24,6 +26,7 @@ integrator:
     by: ['metab','sample']
     xval: 'hours'
     yval: 'blanked_590_mean'
+    exclude_negatives: 'minimum'
 
 metabolite_pca:
     cols: 'metab'
