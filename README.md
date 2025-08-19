@@ -20,7 +20,7 @@ All other parameters for the script are supplied by YAML files. The script can e
 
 ### Getting Started
 
-This repo comes with a Conda environment that contains all packages necessary for executing the scripts at `resources/config.yaml`. I recommend using I recommend using [Mamba](https://mamba.readthedocs.io/en/latest/installation/mamba-installation.html) for package management. After installing and activating Mamba, navigate to the home directory of this repo and run:
+This repo comes with a Conda environment that contains all packages necessary for executing the scripts at `resources/config.yaml`. I recommend using [Mamba](https://mamba.readthedocs.io/en/latest/installation/mamba-installation.html) for package management. After installing and activating Mamba, navigate to the home directory of this repo and run:
 
 `mamba env create -f resources/config.yaml`
 
