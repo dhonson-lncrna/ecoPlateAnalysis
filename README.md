@@ -30,7 +30,7 @@ To activate the environment, run:
 
 ### Running the example
 
-This repo comes with two datafiles for a sample analysis. Once the ecoplate conda environment is activated, simply execute:
+This repo comes with several datafiles for a sample analysis. Once the ecoplate conda environment is activated, simply execute:
 
 `python ecoplate_analysis.py exampleAnalysis/defaultConfig.yaml`
 
