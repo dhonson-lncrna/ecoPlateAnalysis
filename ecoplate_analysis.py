@@ -432,7 +432,15 @@ def integrator(av_df,
                 out = [subdf.loc[0][c] for c in cols] + [area]
                 rows.append(out)
             else:
-                pass
+                ind_areas = []
+                for i in subdf.index[:-1]:
+                    h = subdf.loc[i+1,xval] - subdf.loc[i,xval]
+                    a = subdf.loc[i,yval]
+                    b = subdf.loc[i+1,yval]
+                    ind_areas.append(h * (a+b) / 2)
+                area = np.sum(ind_areas)
+                out = [subdf.loc[0][c] for c in cols] + [area]
+                rows.append(out)     
         else:
             ind_areas = []
             for i in subdf.index[:-1]:
@@ -451,7 +459,7 @@ def integrator(av_df,
     elif exclude_negatives == 'drop':
         mind = by.split('_').index('metab')
         ex_metab = set([i.split('_')[mind] for i in skipped_samples])
-        print(len(ex_metab), ex_metab)
+        #print(len(ex_metab), ex_metab)
         outdf = outdf[~outdf['metab'].isin(ex_metab)]
     else:
         pass
@@ -576,7 +584,7 @@ def default_analysis(fdir,
                                  ['metab','sample'],
                                  'hours',
                                  'blanked_590_mean',
-                                  'minimum')
+                                  None)
     int_df.to_csv(full+'Integration.csv', index=False)
     with open(full+'SkippedSamples.txt', 'w') as f:
         f.writelines(skipped)

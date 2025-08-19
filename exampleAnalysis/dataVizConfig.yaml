@@ -1,0 +1,19 @@
+# Parameters for default analysis
+shared_params: &common_params
+    outdir: 'dataViz' # directory where output files will be deposited
+    
+default_analysis:
+    fdir: 'defaultOutput/' # directory containing analysis output
+    sheet_info: ['diapause','specimen','rep'] # information separated by underscores in sample names (e.g. 25D_W_1)
+
+scatters:
+    <<: *common_params
+    groupby: ['diapause','specimen']
+    colorby: 'rep'
+    cmap: 'colorblind'
+
+pca:
+    <<: *common_params
+    colorby: 'specimen'
+    cmap: 'colorblind'
+    show_cbar: False # set to True to add a colorbar. Not a good idea if data is categorical.

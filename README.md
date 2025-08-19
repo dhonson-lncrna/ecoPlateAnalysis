@@ -42,6 +42,14 @@ You can also run an example of the pipeline with all user-supplied parameters. I
 
 If the pipeline executes correctly, the data will be deposited in a new directory called `fullOutput`.
 
+To visualize the `defaultOutput` data, use the supplied config file by running:
+
+`python ecoplate_dataviz.py exampleAnalysis/dataVizConfig.yaml`
+
+If the script executes, plots should be saved in a new directory called `dataViz`. 
+
+To see how to adapt these visualzations and rerun sections of the pipeline to explore the data more thoroughly, see the Example Exploratory Analysis. 
+
 ### Running your own data
 
 The requirements for running your own data are:
